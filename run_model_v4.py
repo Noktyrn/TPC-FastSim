@@ -21,6 +21,7 @@ def make_parser():
     parser.add_argument('--checkpoint_name', type=str, required=True)
     parser.add_argument('--gpu_num', type=str, required=False)
     parser.add_argument('--prediction_only', action='store_true', default=False)
+    parser.add_argument('--device', choices=['cuda', 'cpu'], default='cuda')
 
     return parser
 
@@ -64,7 +65,8 @@ def load_config(file):
 def main():
     args = parse_args()
 
-    cuda_gpu_config.setup_gpu(args.gpu_num)
+    if args.device == 'cuda':
+        cuda_gpu_config.setup_gpu(args.gpu_num)
 
     model_path = Path('saved_models') / args.checkpoint_name
 
