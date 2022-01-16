@@ -1,0 +1,55 @@
+latent_dim: 32
+batch_size: 32
+lr: 1.e-3
+lr_schedule_rate: 0.999
+
+kl_lambda: 1.e-3
+
+save_every: 50
+num_epochs: 10000
+
+feature_noise_power: NULL
+feature_noise_decay: NULL
+
+data_version: 'data_v4'
+pad_range: [-3, 5]
+time_range: [-7, 9]
+scaler: 'logarithmic'
+
+architecture:
+    decoder:
+        - block_type: 'fully_connected'
+          arguments:
+            units: [32, 64, 64, 64, 128]
+            activations: [
+                'elu', 'elu', 'elu', 'elu',
+                " (
+                    lambda x,
+                           shift=0.01,
+                           val=np.log10(2),
+                           v0=np.log10(2) / 10: (
+                        tf.where(
+                            x > shift,
+                            val + x - shift,
+                            v0 + tf.keras.activations.elu(
+                                x,
+                                alpha=(v0 * shift / (val - v0))
+                            ) * (val - v0) / shift
+                        )
+                    )
+                )"
+            ]
+            kernel_init: 'glorot_uniform'
+            input_shape: [37,]
+            output_shape: [8, 16]
+            name: 'decoder'
+
+    encoder:
+        - block_type: 'fully_connected'
+          arguments:
+            units: [32, 64, 64, 64]
+            activations: [ 'elu', 'elu', 'elu', 'elu']
+            kernel_init: 'glorot_uniform'
+            input_shape: [133,]
+            output_shape: [2,32]
+            name: 'encoder'

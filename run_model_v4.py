@@ -9,8 +9,8 @@ import yaml
 from data import preprocessing
 from models.utils import latest_epoch, load_weights
 from models.training import train
-from models.callbacks import SaveModelCallback, WriteHistSummaryCallback, ScheduleLRCallback, get_scheduler
-from models.model_v4 import Model_v4
+from models.callbacks import VAE_SaveModelCallback, SaveModelCallback, WriteHistSummaryCallback, ScheduleLRCallback, get_scheduler, VAE_ScheduleLRCallback
+from models.model_v4_vae import Model_v4_VAE as Model_v4
 from metrics import evaluate_model
 import cuda_gpu_config
 
@@ -131,15 +131,23 @@ def main():
 
                 return current_power
 
-        save_model = SaveModelCallback(model=model, path=model_path, save_period=config['save_every'])
+        #save_model = SaveModelCallback(model=model, path=model_path, save_period=config['save_every'])
+        save_model = VAE_SaveModelCallback(model=model, path=model_path, save_period=config['save_every'])
         write_hist_summary = WriteHistSummaryCallback(
             model, sample=(X_test, Y_test), save_period=config['save_every'], writer=writer_val
         )
+        """
         schedule_lr = ScheduleLRCallback(
             model,
             writer=writer_val,
             func_gen=get_scheduler(config['lr_gen'], config['lr_schedule_rate_gen']),
             func_disc=get_scheduler(config['lr_disc'], config['lr_schedule_rate_disc']),
+        )
+        """
+        schedule_lr = VAE_ScheduleLRCallback(
+            model,
+            writer=writer_val,
+            func=get_scheduler(config['lr'], config['lr_schedule_rate'])
         )
         if continue_training:
             schedule_lr(next_epoch - 1)
