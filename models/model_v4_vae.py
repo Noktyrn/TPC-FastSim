@@ -22,18 +22,18 @@ _f = preprocess_features
 
 
 def vae_loss(d_real, d_fake):
-    return tf.reduce_mean(d_fake - d_real)
+    return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
 
 
 def KL_div(mu, log_sigma):
     #https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
 
-    return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=0))
+    return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=1))
 
 
 class Model_v4_VAE:
     def __init__(self, config):
-        self.opt = tf.keras.optimizers.RMSprop(config['lr'])
+        self.opt = tf.keras.optimizers.Adam(config['lr'])
         self.kl_lambda = config['kl_lambda']
 
         self.latent_dim = config['latent_dim']
@@ -65,28 +65,31 @@ class Model_v4_VAE:
     def _load_weights(self, checkpoint, enc_or_dec):
         if enc_or_dec == 'enc':
             network = self.encoder
-            step_fn = self.gen_step
+            step_fn = self.training_step
         elif enc_or_dec == 'dec':
             network = self.decoder
-            step_fn = self.disc_step
+            step_fn = self.training_step
         else:
             raise ValueError(enc_or_dec)
 
         model_file = h5py.File(checkpoint, 'r')
         if len(network.optimizer.weights) == 0 and 'optimizer_weights' in model_file:
+            """
             # perform single optimization step to init optimizer weights
             features_shape = self.discriminator.inputs[0].shape.as_list()
             targets_shape = self.discriminator.inputs[1].shape.as_list()
             features_shape[0], targets_shape[0] = 1, 1
             step_fn(tf.zeros(features_shape), tf.zeros(targets_shape))
+            """
 
         print(f'Loading {enc_or_dec} weights from {str(checkpoint)}')
         network.load_weights(str(checkpoint))
-
+        """
         if 'optimizer_weights' in model_file:
             print('Also recovering the optimizer state')
             opt_weight_values = hdf5_format.load_optimizer_weights_from_hdf5_group(model_file)
             network.optimizer.set_weights(opt_weight_values)
+        """
 
     @tf.function
     def sample(self, mu, log_sigma):
@@ -119,7 +122,9 @@ class Model_v4_VAE:
 
         KL = KL_div(mu, log_sigma)
         z = self.sample(mu, log_sigma)
-        loss = KL * self.kl_lambda + vae_loss(target_batch, self.decode(z, feature_batch))
+        res = self.decode(z, feature_batch)
+
+        loss = vae_loss(target_batch, res) + KL * self.kl_lambda
 
         return {'loss': loss}
 
