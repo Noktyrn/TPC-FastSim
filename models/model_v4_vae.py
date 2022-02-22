@@ -52,6 +52,7 @@ class Model_v4_VAE:
         self.pad_range = tuple(config['pad_range'])
         self.time_range = tuple(config['time_range'])
         self.data_version = config['data_version']
+        self.enc_type = config['encoder_type']
 
         self.encoder.compile(optimizer=self.opt, loss='mean_squared_error')
         self.decoder.compile(optimizer=self.opt, loss='mean_squared_error')
@@ -104,10 +105,13 @@ class Model_v4_VAE:
     
     @tf.function
     def encode(self, features, x):
-        size = tf.shape(features)
-        x_shape = tf.shape(x)
-        latent_input = tf.reshape(x, shape=(size[0], x_shape[1]*x_shape[2]))
-        res = tf.concat([_f(features), latent_input], axis=-1)
+        if self.enc_type == 'fc':
+            size = tf.shape(features)
+            x_shape = tf.shape(x)
+            latent_input = tf.reshape(x, shape=(size[0], x_shape[1]*x_shape[2]))
+            res = tf.concat([_f(features), latent_input], axis=-1)
+        elif self.enc_type == 'conv':
+            res = [_f(features), x]
         return self.encoder(res)
 
     @tf.function
