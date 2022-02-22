@@ -3,9 +3,9 @@ batch_size: 32
 lr: 1.e-5
 lr_schedule_rate: 0.999
 
-kl_lambda: 1.e-1
+kl_lambda: 1
 
-save_every: 50
+save_every: 100
 num_epochs: 10001
 
 feature_noise_power: NULL
@@ -47,8 +47,8 @@ architecture:
     encoder:
         - block_type: 'fully_connected'
           arguments:
-            units: [64, 128, 64]
-            activations: [ 'elu', 'elu', 'elu']
+            units: [128, 64, 64, 64]
+            activations: [ 'elu', 'elu', 'elu', 'elu']
             kernel_init: 'glorot_uniform'
             input_shape: [133,]
             output_shape: [2,32]
