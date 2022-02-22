@@ -5,8 +5,8 @@ lr_schedule_rate: 0.999
 
 kl_lambda: 1
 
-save_every: 50
-num_epochs: 1001
+save_every: 100
+num_epochs: 10001
 
 feature_noise_power: NULL
 feature_noise_decay: NULL
