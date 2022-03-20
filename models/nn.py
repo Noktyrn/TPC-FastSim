@@ -197,7 +197,7 @@ def build_block(block_type, arguments):
     return block
 
 
-def build_architecture(block_descriptions, name=None, custom_objects_code=None):
+def build_architecture(block_descriptions, name=None, custom_objects_code=None, input_shape=None):
     if custom_objects_code:
         print("build_architecture(): got custom objects code, executing:")
         print(custom_objects_code)
@@ -205,7 +205,12 @@ def build_architecture(block_descriptions, name=None, custom_objects_code=None):
 
     blocks = [build_block(**descr) for descr in block_descriptions]
 
-    inputs = [tf.keras.Input(shape=i.shape[1:]) for i in blocks[0].inputs]
+    if input_shape:
+        inputs = tf.keras.Input(shape=input_shape)
+        if len(input_shape) == 2:
+            inputs = tf.keras.layers.Reshape(tuple(input_shape) + (1,))(inputs)
+    if blocks[0].inputs:
+        inputs = [tf.keras.Input(shape=i.shape[1:]) for i in blocks[0].inputs]
     outputs = inputs
     for block in blocks:
         outputs = block(outputs)

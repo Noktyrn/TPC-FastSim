@@ -40,7 +40,8 @@ class Model_v4_AE:
 
         architecture_descr = config['architecture']
         self.encoder = nn.build_architecture(
-            architecture_descr['encoder'], custom_objects_code=config.get('custom_objects', None)
+            architecture_descr['encoder'], custom_objects_code=config.get('custom_objects', None), 
+            input_shape = config.get('input_shape', None)
         )
         self.decoder = nn.build_architecture(
             architecture_descr['decoder'], custom_objects_code=config.get('custom_objects', None)
@@ -99,9 +100,7 @@ class Model_v4_AE:
 
     @tf.function
     def make_fake(self, features):
-        size = tf.shape(features)[0]
-        latent_input = tf.random.normal(shape=(size, self.latent_dim), dtype='float32')
-        return self.decoder(tf.concat([_f(features), latent_input], axis=-1))
+        return self.decoder(_f(features))
     
     @tf.function
     def encode(self, features, x):
@@ -111,21 +110,17 @@ class Model_v4_AE:
             latent_input = tf.reshape(x, shape=(size[0], x_shape[1]*x_shape[2]))
             res = latent_input
         elif self.enc_type == 'conv':
-            res = tf.expand_dims(x, axis=0)
+            res = tf.expand_dims(x, axis=-1)
         return self.encoder(res)
 
     @tf.function
-    def decode(self, z, features):
+    def decode(self, features):
         return self.decoder(_f(features))
 
     @tf.function
     def calculate_losses(self, feature_batch, target_batch):
         encoded_batch = self.encode(feature_batch, target_batch)
-        mu, log_sigma = encoded_batch[:,0,:], encoded_batch[:,1,:]
-
-        KL = KL_div(mu, log_sigma)
-        z = self.sample(mu, log_sigma)
-        res = self.decode(z, feature_batch)
+        res = self.decode(encoded_batch)
 
         loss = vae_loss(target_batch, res) #+ KL * self.kl_lambda
 

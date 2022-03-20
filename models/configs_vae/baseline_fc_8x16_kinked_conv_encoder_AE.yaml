@@ -16,12 +16,13 @@ pad_range: [-3, 5]
 time_range: [-7, 9]
 scaler: 'logarithmic'
 encoder_type: 'conv'
+input_shape: [8, 16]
 
 architecture:
     decoder:
         - block_type: 'fully_connected'
           arguments:
-            units: [8, 16, 32, 64, 128]
+            units: [32, 64, 64, 64, 128]
             activations: [
                 'elu', 'elu', 'elu', 'elu',
                 " (
@@ -46,30 +47,22 @@ architecture:
             name: 'decoder'
 
     encoder:
-        - block_type: 'connect'
+        - block_type: 'conv'
           arguments:
-            vector_shape: NULL
-            img_shape: [8, 16]
-            vector_bypass: False
-            concat_outputs: True
-            name: 'encoder_tail'
-            block:
-              block_type: 'conv'
-              arguments:
-                filters: [16, 16, 32, 32, 64, 64]
-                kernel_sizes: [3, 3, 3, 3, 3, 2]
-                paddings: ['same', 'same', 'same', 'same', 'valid', 'valid']
-                activations: ['elu', 'elu', 'elu', 'elu', 'elu', 'elu']
-                poolings: [NULL, [1, 2], NULL, 2, NULL, NULL]
-                kernel_init: glorot_uniform
-                input_shape: [8, 16]
-                output_shape: [64,]
-                dropouts: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02]
-                name: encoder_conv_block
+            filters: [16, 16, 32, 32, 64, 64]
+            kernel_sizes: [3, 3, 3, 3, 3, 2]
+            paddings: ['same', 'same', 'same', 'same', 'valid', 'valid']
+            activations: ['elu', 'elu', 'elu', 'elu', 'elu', 'elu']
+            poolings: [NULL, [1, 2], NULL, 2, NULL, NULL]
+            kernel_init: 'glorot_uniform'
+            input_shape: NULL
+            output_shape: [64,]
+            dropouts: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02]
+            name: 'encoder_conv_block'
         - block_type: 'fully_connected'
           arguments:
-            units: [128, 64]
-            activations: ['elu', NULL]
+            units: [128, 64, 32, 5]
+            activations: ['elu', 'elu', 'elu', NULL]
             kernel_init: 'glorot_uniform'
             input_shape: [64,]
             output_shape: [5,]
