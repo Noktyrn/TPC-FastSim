@@ -24,6 +24,9 @@ _f = preprocess_features
 def vae_loss(d_real, d_fake):
     return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
 
+def ae_loss(d_real, d_fake):
+    return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0)))
+
 
 def KL_div(mu, log_sigma):
     #https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
@@ -122,7 +125,7 @@ class Model_v4_AE:
         encoded_batch = self.encode(feature_batch, target_batch)
         res = self.decode(encoded_batch)
 
-        loss = vae_loss(target_batch, res) #+ KL * self.kl_lambda
+        loss = vae_loss(target_batch, res) + ae_loss(_f(feature_batch), encoded_batch)#+ KL * self.kl_lambda
 
         return {'loss': loss}
 

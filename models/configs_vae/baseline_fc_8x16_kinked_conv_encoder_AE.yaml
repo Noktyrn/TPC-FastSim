@@ -22,7 +22,7 @@ architecture:
     decoder:
         - block_type: 'fully_connected'
           arguments:
-            units: [32, 64, 64, 64, 128]
+            units: [32, 64, 64, 128, 128]
             activations: [
                 'elu', 'elu', 'elu', 'elu',
                 " (
@@ -61,8 +61,8 @@ architecture:
             name: 'encoder_conv_block'
         - block_type: 'fully_connected'
           arguments:
-            units: [128, 64, 32, 5]
-            activations: ['elu', 'elu', 'elu', NULL]
+            units: [128, 128, 64, 32, 5]
+            activations: ['elu', 'elu', 'elu', 'elu', NULL]
             kernel_init: 'glorot_uniform'
             input_shape: [64,]
             output_shape: [5,]
