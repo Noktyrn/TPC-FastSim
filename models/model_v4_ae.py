@@ -123,9 +123,10 @@ class Model_v4_AE:
     @tf.function
     def calculate_losses(self, feature_batch, target_batch):
         encoded_batch = self.encode(feature_batch, target_batch)
-        res = self.decode(encoded_batch)
+        res = self.decode(feature_batch)
+        ae_l = ae_loss(_f(feature_batch), encoded_batch)
 
-        loss = vae_loss(target_batch, res) + ae_loss(_f(feature_batch), encoded_batch)#+ KL * self.kl_lambda
+        loss = vae_loss(target_batch, res) + ae_l #+ KL * self.kl_lambda
 
         return {'loss': loss}
 
