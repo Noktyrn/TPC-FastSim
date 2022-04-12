@@ -52,8 +52,8 @@ def load_weights(model, model_path, epoch=None):
     if epoch is None:
         epoch = latest_epoch(model_path)
 
-    enc_checkpoint = model_path / f"enc_{epoch:05d}.h5"
-    dec_checkpoint = model_path / f"dec_{epoch:05d}.h5"
+    enc_checkpoint = model_path / f"encoder_{epoch:05d}.h5"
+    dec_checkpoint = model_path / f"decoder_{epoch:05d}.h5"
 
     model.load_encoder(enc_checkpoint)
     model.load_decoder(dec_checkpoint)
