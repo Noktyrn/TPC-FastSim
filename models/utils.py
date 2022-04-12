@@ -5,7 +5,7 @@ def epoch_from_name(name):
     (epoch,) = re.findall(r'\d+', name)
     return int(epoch)
 
-
+"""
 def latest_epoch(model_path):
     gen_checkpoints = model_path.glob("generator_*.h5")
     disc_checkpoints = model_path.glob("discriminator_*.h5")
@@ -30,5 +30,32 @@ def load_weights(model, model_path, epoch=None):
 
     model.load_generator(gen_checkpoint)
     model.load_discriminator(disc_checkpoint)
+
+    return epoch
+"""
+def latest_epoch(model_path):
+    enc_checkpoints = model_path.glob("encoder_*.h5")
+    dec_checkpoints = model_path.glob("decoder_*.h5")
+
+    enc_epochs = [epoch_from_name(path.stem) for path in enc_checkpoints]
+    dec_epochs = [epoch_from_name(path.stem) for path in dec_checkpoints]
+
+    latest_enc_epoch = max(enc_epochs)
+    latest_dec_epoch = max(dec_epochs)
+
+    assert latest_enc_epoch == latest_dec_epoch, "Latest disc and gen epochs differ"
+
+    return latest_dec_epoch
+
+
+def load_weights(model, model_path, epoch=None):
+    if epoch is None:
+        epoch = latest_epoch(model_path)
+
+    enc_checkpoint = model_path / f"enc_{epoch:05d}.h5"
+    dec_checkpoint = model_path / f"dec_{epoch:05d}.h5"
+
+    model.load_encoder(enc_checkpoint)
+    model.load_decoder(dec_checkpoint)
 
     return epoch
