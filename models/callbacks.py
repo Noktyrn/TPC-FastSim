@@ -57,6 +57,11 @@ class VAE_ScheduleLRCallback:
         self.writer = writer
 
     def __call__(self, step):
+        """
+        self.model.opt.lr.assign(self.func(step))
+        with self.writer.as_default():
+            tf.summary.scalar("learning rate", self.model.opt.lr, step)
+        """
         self.model.opt.lr.assign(self.func(step))
         with self.writer.as_default():
             tf.summary.scalar("learning rate", self.model.opt.lr, step)

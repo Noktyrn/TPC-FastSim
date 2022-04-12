@@ -37,9 +37,6 @@ def KL_div(mu, log_sigma):
 class Model_v4_AE:
     def __init__(self, config):
         self.opt = tf.keras.optimizers.Adam(config['lr'])
-        #self.kl_lambda = config['kl_lambda']
-
-        #self.latent_dim = config['latent_dim']
 
         architecture_descr = config['architecture']
         self.encoder = nn.build_architecture(
@@ -50,7 +47,8 @@ class Model_v4_AE:
             architecture_descr['decoder'], custom_objects_code=config.get('custom_objects', None)
         )
 
-        self.step_counter = tf.Variable(0, dtype='int32', trainable=False)
+        self.step_counter = 0
+        self.latent_dim = config['latent_dim']
 
         self.scaler = scalers.get_scaler(config['scaler'])
         self.pad_range = tuple(config['pad_range'])
@@ -103,7 +101,9 @@ class Model_v4_AE:
 
     @tf.function
     def make_fake(self, features):
-        return self.decoder(_f(features))
+        size = tf.shape(features)[0]
+        latent_input = tf.random.normal(shape=(size, self.latent_dim), dtype='float32')
+        return self.decoder(tf.concat([_f(features), latent_input], axis=-1))
     
     @tf.function
     def encode(self, features, x):
@@ -111,23 +111,23 @@ class Model_v4_AE:
             size = tf.shape(features)
             x_shape = tf.shape(x)
             latent_input = tf.reshape(x, shape=(size[0], x_shape[1]*x_shape[2]))
-            res = latent_input
+            res = tf.concat([_f(features), latent_input], axis=-1)
         elif self.enc_type == 'conv':
-            res = tf.expand_dims(x, axis=-1)
+            res = [_f(features), x]
         return self.encoder(res)
 
     @tf.function
-    def decode(self, features):
-        return self.decoder(_f(features))
+    def decode(self, features, z):
+        z_with_features = tf.concat([_f(features), z], axis=-1)
+        return self.decoder(z_with_features)
 
     @tf.function
     def calculate_losses(self, feature_batch, target_batch):
-        encoded_batch = self.encode(feature_batch, target_batch)
-        res = self.decode(feature_batch)
-        ae_l = ae_loss(_f(feature_batch), encoded_batch)
-
-        loss = vae_loss(target_batch, res) + ae_l #+ KL * self.kl_lambda
-
+        z = self.encode(feature_batch, target_batch)
+        res_f = self.decode(feature_batch, z)
+        #ae_l = ae_loss(_f(feature_batch), encoded_batch)
+        #tf.print(ae_l)
+        loss = vae_loss(target_batch, res_f)
         return {'loss': loss}
 
     @tf.function
@@ -138,6 +138,9 @@ class Model_v4_AE:
         with tf.GradientTape() as t:
             losses = self.calculate_losses(feature_batch, target_batch)
 
-        grads = t.gradient(losses['loss'], self.encoder.trainable_variables+self.decoder.trainable_variables)
-        self.opt.apply_gradients(zip(grads, self.encoder.trainable_variables+self.decoder.trainable_variables))
+        train_vars = self.decoder.trainable_variables + self.encoder.trainable_variables
+
+        grads = t.gradient(losses['loss'], train_vars)
+        self.opt.apply_gradients(zip(grads, train_vars))
+        self.step_counter += 1
         return losses
