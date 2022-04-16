@@ -95,7 +95,7 @@ class Model_v4_VAE:
     @tf.function
     def sample(self, mu, log_sigma):
         epsilons = tf.random.normal(mu.shape)
-        return mu + epsilons * tf.exp(log_sigma/2)
+        return mu + epsilons * tf.exp(log_sigma)
 
     @tf.function
     def make_fake(self, features):

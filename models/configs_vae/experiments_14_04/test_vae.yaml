@@ -3,7 +3,7 @@ batch_size: 32
 lr: 1.e-4
 lr_schedule_rate: 0.999
 
-kl_lambda: 5
+kl_lambda: 2
 
 save_every: 50
 num_epochs: 10001
