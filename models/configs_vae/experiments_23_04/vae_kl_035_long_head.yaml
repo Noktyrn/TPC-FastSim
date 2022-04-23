@@ -69,7 +69,7 @@ architecture:
         - block_type: 'fully_connected'
           arguments:
             units: [256, 128, 64]
-            activations: ['elu', NULL]
+            activations: ['elu', 'elu', NULL]
             kernel_init: 'glorot_uniform'
             input_shape: [69,]
             output_shape: [2, 32]
