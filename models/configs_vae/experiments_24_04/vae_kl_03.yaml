@@ -7,6 +7,7 @@ kl_lambda: 0.3
 
 save_every: 50
 num_epochs: 10001
+stop_enc: 1000
 
 feature_noise_power: NULL
 feature_noise_decay: NULL

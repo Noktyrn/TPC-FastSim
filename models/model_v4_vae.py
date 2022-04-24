@@ -46,7 +46,8 @@ class Model_v4_VAE:
             architecture_descr['decoder'], custom_objects_code=config.get('custom_objects', None)
         )
 
-        self.step_counter = tf.Variable(0, dtype='int32', trainable=False)
+        self.step_counter = 0
+        self.stop_enc = config['stop_enc']
 
         self.scaler = scalers.get_scaler(config['scaler'])
         self.pad_range = tuple(config['pad_range'])
@@ -136,10 +137,14 @@ class Model_v4_VAE:
     def training_step(self, feature_batch, target_batch):
         feature_batch = tf.convert_to_tensor(feature_batch)
         target_batch = tf.convert_to_tensor(target_batch)
+        self.step_counter += 1
+        vars = self.decoder.trainable_variables
+        if self.step_counter <= self.stop_enc:
+            vars += self.encoder.trainable_variables
 
         with tf.GradientTape() as t:
             losses = self.calculate_losses(feature_batch, target_batch)
 
-        grads = t.gradient(losses['loss'], self.encoder.trainable_variables+self.decoder.trainable_variables)
-        self.opt.apply_gradients(zip(grads, self.encoder.trainable_variables+self.decoder.trainable_variables))
+        grads = t.gradient(losses['loss'], vars)
+        self.opt.apply_gradients(zip(grads, vars))
         return losses
