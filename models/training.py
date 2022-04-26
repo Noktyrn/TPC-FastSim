@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from tqdm import trange
-
+from models.callbacks import VAE_PlateauScheduleLRCallback
 
 def train(
     data_train,
@@ -67,7 +67,12 @@ def train(
         losses_val = {k: l / len(data_val) for k, l in losses_val.items()}
 
         for f in callbacks:
-            f(i_epoch)
+            if type(f) == VAE_PlateauScheduleLRCallback:
+                for v in losses_val.values():
+                    loss = v
+                f(i_epoch, loss)
+            else:
+                f(i_epoch)
 
         if train_writer is not None:
             with train_writer.as_default():

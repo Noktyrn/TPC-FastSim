@@ -66,6 +66,22 @@ class VAE_ScheduleLRCallback:
         with self.writer.as_default():
             tf.summary.scalar("learning rate", self.model.opt.lr, step)
 
+class VAE_PlateauScheduleLRCallback:
+    def __init__(self, model, func, writer):
+        self.model = model
+        self.func = func
+        self.writer = writer
+
+    def __call__(self, step, loss):
+        """
+        self.model.opt.lr.assign(self.func(step))
+        with self.writer.as_default():
+            tf.summary.scalar("learning rate", self.model.opt.lr, step)
+        """
+        self.model.opt.lr.assign(self.func(loss))
+        with self.writer.as_default():
+            tf.summary.scalar("learning rate", self.model.opt.lr, step)
+
 class VAE_SaveModelCallback:
     def __init__(self, model, path, save_period):
         self.model = model
@@ -86,3 +102,27 @@ def get_scheduler(lr, lr_decay):
         return lr * lr_decay ** step
 
     return schedule_lr
+
+class LR_Reduce_On_Plateau:
+    def __init__(self, lr, factor=1e-1, patience=5, delta=1e-4):
+        self.counter = 0
+        self.patience = patience
+        self.delta = delta
+        self.factor = factor
+        self.previous = 0
+        self.lr = lr
+    
+    def __call__(self, loss):
+        diff = self.previous - loss
+        if diff < self.delta:
+            self.counter += 1
+        else:
+            self.counter = 0
+        
+        if self.counter == self.patience:
+            self.lr *= self.factor
+            self.counter = 0
+        self.previous = loss
+        
+        return self.lr
+        

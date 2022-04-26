@@ -47,7 +47,6 @@ class Model_v4_VAE:
         )
 
         self.step_counter = 0
-        self.stop_enc = config['stop_enc']
 
         self.scaler = scalers.get_scaler(config['scaler'])
         self.pad_range = tuple(config['pad_range'])
@@ -135,12 +134,12 @@ class Model_v4_VAE:
 
     @tf.function
     def training_step(self, feature_batch, target_batch):
+        self.step_counter += 1
+        
         feature_batch = tf.convert_to_tensor(feature_batch)
         target_batch = tf.convert_to_tensor(target_batch)
-        self.step_counter += 1
         vars = self.decoder.trainable_variables
-        if self.step_counter <= self.stop_enc:
-            vars += self.encoder.trainable_variables
+        vars += self.encoder.trainable_variables
 
         with tf.GradientTape() as t:
             losses = self.calculate_losses(feature_batch, target_batch)
