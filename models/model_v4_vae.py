@@ -1,7 +1,7 @@
 import h5py
 import tensorflow as tf
 from tensorflow.python.keras.saving import hdf5_format
-
+import numpy as np
 
 from . import scalers, nn
 
@@ -21,7 +21,7 @@ def preprocess_features(features):
 _f = preprocess_features
 
 
-def vae_loss(d_real, d_fake):
+def img_loss(d_real, d_fake):
     return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
 
 
@@ -29,6 +29,28 @@ def KL_div(mu, log_sigma):
     #https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
 
     return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=1))
+
+
+def get_val_metric_v(imgs, imgs_unscaled):
+    """Returns a vector of gaussian fit results to the image.
+    The components are: [mu0, mu1, sigma0^2, sigma1^2, covariance, integral]
+    """
+    assert imgs.ndim == 3, 'get_val_metric_v: Wrong images dimentions'
+    assert (imgs >= 0).all(), 'get_val_metric_v: Negative image content'
+    assert (imgs > 0).any(axis=(1, 2)).all(), 'get_val_metric_v: some images are empty'
+    imgs_n = imgs / imgs.sum(axis=(1, 2), keepdims=True)
+    mu = np.fromfunction(
+        lambda i, j: (imgs_n[:, np.newaxis, ...] * np.stack([i, j])[np.newaxis, ...]).sum(axis=(2, 3)),
+        shape=imgs.shape[1:],
+    )
+
+    cov = np.fromfunction(
+        lambda i, j: ((imgs_n[:, np.newaxis, ...] * np.stack([i * i, j * j, i * j])[np.newaxis, ...]).sum(axis=(2, 3)))
+        - np.stack([mu[:, 0] ** 2, mu[:, 1] ** 2, mu[:, 0] * mu[:, 1]]).T,
+        shape=imgs.shape[1:],
+    )
+
+    return np.concatenate([mu, cov, imgs_unscaled.sum(axis=(1, 2))[:, np.newaxis]], axis=1)
 
 
 class Model_v4_VAE:
@@ -119,7 +141,7 @@ class Model_v4_VAE:
         z_with_features = tf.concat([_f(features), z], axis=-1)
         return self.decoder(z_with_features)
 
-    @tf.function
+    #@tf.function
     def calculate_losses(self, feature_batch, target_batch):
         encoded_batch = self.encode(feature_batch, target_batch)
         mu, log_sigma = encoded_batch[:,0,:], encoded_batch[:,1,:]
@@ -127,12 +149,19 @@ class Model_v4_VAE:
         KL = KL_div(mu, log_sigma)
         z = self.sample(mu, log_sigma)
         res = self.decode(z, feature_batch)
+        #res = tf.cast(res, tf.float32)
+        #target_batch = tf.cast(target_batch, tf.float32)
+        original_metrics = tf.numpy_function(get_val_metric_v, [target_batch, self.scaler.unscale(target_batch)], tf.float32)
+        res_metrics = tf.numpy_function(get_val_metric_v, [res, self.scaler.unscale(res)], tf.float32)
 
-        loss = vae_loss(target_batch, res) + KL * self.kl_lambda
+        loss = img_loss(target_batch, res)
+        loss += KL * self.kl_lambda 
+        loss_metrics = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_metrics, res_metrics), axis=0)
+        loss += tf.cast(0.01*loss_metrics, tf.float32)
 
         return {'loss': loss}
 
-    @tf.function
+    #@tf.function
     def training_step(self, feature_batch, target_batch):
         self.step_counter += 1
         
