@@ -34,23 +34,52 @@ def KL_div(mu, log_sigma):
 def get_val_metric_v(imgs, imgs_unscaled):
     """Returns a vector of gaussian fit results to the image.
     The components are: [mu0, mu1, sigma0^2, sigma1^2, covariance, integral]
+    
+    assert len(imgs.shape) == 3, 'get_val_metric_v: Wrong images dimentions'
+    check1 = tf.get_static_value(tf.reduce_all(imgs >= 0))
+    check2 = tf.get_static_value(tf.reduce_all(tf.reduce_any(imgs > 0, axis=(1, 2))))
+    assert check1, 'get_val_metric_v: Negative image content'
+    assert check2, 'get_val_metric_v: some images are empty'
     """
-    assert imgs.ndim == 3, 'get_val_metric_v: Wrong images dimentions'
-    assert (imgs >= 0).all(), 'get_val_metric_v: Negative image content'
-    assert (imgs > 0).any(axis=(1, 2)).all(), 'get_val_metric_v: some images are empty'
-    imgs_n = imgs / imgs.sum(axis=(1, 2), keepdims=True)
-    mu = np.fromfunction(
-        lambda i, j: (imgs_n[:, np.newaxis, ...] * np.stack([i, j])[np.newaxis, ...]).sum(axis=(2, 3)),
+
+    #step 1
+    imgs_n = tf.ones_like(imgs)
+    imgs_n = tf.reshape(imgs_n, imgs_n.shape[1:]+imgs_n.shape[0])
+    tf.multiply(imgs_n, tf.reduce_sum(imgs, [1, 2]))
+    imgs_n = tf.reshape(imgs_n, imgs_n.shape[-1]+imgs_n.shape[:2])
+    imgs_n = imgs / imgs_n
+
+    #step 2
+    indexes = np.fromfunction(
+        lambda i, j: (i, j),
         shape=imgs.shape[1:],
     )
+    prep2 = tf.expand_dims(imgs_n, axis=1)
 
-    cov = np.fromfunction(
-        lambda i, j: ((imgs_n[:, np.newaxis, ...] * np.stack([i * i, j * j, i * j])[np.newaxis, ...]).sum(axis=(2, 3)))
-        - np.stack([mu[:, 0] ** 2, mu[:, 1] ** 2, mu[:, 0] * mu[:, 1]]).T,
-        shape=imgs.shape[1:],
-    )
+    #step 3
+    prep3 = tf.cast(tf.expand_dims(tf.stack([indexes[0], indexes[1]]), axis=0), tf.float32)
 
-    return np.concatenate([mu, cov, imgs_unscaled.sum(axis=(1, 2))[:, np.newaxis]], axis=1)
+    #step 4
+    prep4 = prep2 * prep3
+    mu = tf.reduce_sum(prep4, [2, 3])
+
+    #step 1
+    prep1 = tf.stack([indexes[0]*indexes[0], indexes[1]*indexes[1], indexes[0]*indexes[1]])
+    prep1 = tf.cast(tf.expand_dims(prep1, axis=0), tf.float32)
+
+    #step 2
+    prep2 = prep2 * prep1
+    prep2 = tf.reduce_sum(prep2, [2, 3])
+
+    #step 3
+    prep3 = tf.transpose(tf.stack([mu[:, 0] ** 2, mu[:, 1] ** 2, mu[:, 0] * mu[:, 1]]))
+
+    #step 4
+    cov = prep2 - prep3
+
+    integral = tf.expand_dims(tf.reduce_sum(imgs_unscaled, [1, 2]), axis=1)
+
+    return tf.concat([mu, cov, integral], axis=1)
 
 
 class Model_v4_VAE:
@@ -71,13 +100,14 @@ class Model_v4_VAE:
         self.step_counter = 0
 
         self.scaler = scalers.get_scaler(config['scaler'])
+        self.metrics_coef = config['metrics_coef']
         self.pad_range = tuple(config['pad_range'])
         self.time_range = tuple(config['time_range'])
         self.data_version = config['data_version']
         self.enc_type = config['encoder_type']
 
-        self.encoder.compile(optimizer=self.opt, loss='mean_squared_error')
-        self.decoder.compile(optimizer=self.opt, loss='mean_squared_error')
+        self.encoder.compile(optimizer=self.opt, loss='mean_squared_error', run_eagerly=True)
+        self.decoder.compile(optimizer=self.opt, loss='mean_squared_error', run_eagerly=True)
 
     def load_encoder(self, checkpoint):
         self._load_weights(checkpoint, 'enc')
@@ -141,7 +171,7 @@ class Model_v4_VAE:
         z_with_features = tf.concat([_f(features), z], axis=-1)
         return self.decoder(z_with_features)
 
-    #@tf.function
+    @tf.function
     def calculate_losses(self, feature_batch, target_batch):
         encoded_batch = self.encode(feature_batch, target_batch)
         mu, log_sigma = encoded_batch[:,0,:], encoded_batch[:,1,:]
@@ -149,19 +179,18 @@ class Model_v4_VAE:
         KL = KL_div(mu, log_sigma)
         z = self.sample(mu, log_sigma)
         res = self.decode(z, feature_batch)
-        #res = tf.cast(res, tf.float32)
-        #target_batch = tf.cast(target_batch, tf.float32)
-        original_metrics = tf.numpy_function(get_val_metric_v, [target_batch, self.scaler.unscale(target_batch)], tf.float32)
-        res_metrics = tf.numpy_function(get_val_metric_v, [res, self.scaler.unscale(res)], tf.float32)
+
+        original_metrics = get_val_metric_v(target_batch, self.scaler.unscale(target_batch))
+        res_metrics = get_val_metric_v(res, self.scaler.unscale(res))
 
         loss = img_loss(target_batch, res)
         loss += KL * self.kl_lambda 
         loss_metrics = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_metrics, res_metrics), axis=0)
-        loss += tf.cast(0.01*loss_metrics, tf.float32)
+        loss += tf.cast(self.metrics_coef*loss_metrics, tf.float32)
 
         return {'loss': loss}
 
-    #@tf.function
+    @tf.function
     def training_step(self, feature_batch, target_batch):
         self.step_counter += 1
         
