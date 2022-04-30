@@ -20,17 +20,17 @@ def preprocess_features(features):
 
 _f = preprocess_features
 
-
+@tf.function
 def img_loss(d_real, d_fake):
     return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
 
-
+@tf.function
 def KL_div(mu, log_sigma):
     #https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
 
     return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=1))
 
-
+@tf.function
 def get_val_metric_v(imgs, imgs_unscaled):
     """Returns a vector of gaussian fit results to the image.
     The components are: [mu0, mu1, sigma0^2, sigma1^2, covariance, integral]
@@ -79,7 +79,7 @@ def get_val_metric_v(imgs, imgs_unscaled):
 
     integral = tf.expand_dims(tf.reduce_sum(imgs_unscaled, [1, 2]), axis=1)
 
-    return tf.concat([mu, cov, integral], axis=1)
+    return mu, cov, integral
 
 
 class Model_v4_VAE:
@@ -98,9 +98,11 @@ class Model_v4_VAE:
         )
 
         self.step_counter = 0
+        self.amp_coef = config.get('amp_coef', 1.e-5)
+        self.cov_coef = config.get('cov_coef', 1.e-5)
+        self.mu_coef = config.get('mu_coef', 1.e-3)
 
         self.scaler = scalers.get_scaler(config['scaler'])
-        self.metrics_coef = config['metrics_coef']
         self.pad_range = tuple(config['pad_range'])
         self.time_range = tuple(config['time_range'])
         self.data_version = config['data_version']
@@ -180,15 +182,21 @@ class Model_v4_VAE:
         z = self.sample(mu, log_sigma)
         res = self.decode(z, feature_batch)
 
-        original_metrics = get_val_metric_v(target_batch, self.scaler.unscale(target_batch))
-        res_metrics = get_val_metric_v(res, self.scaler.unscale(res))
+        original_mu, original_cov, original_amp = get_val_metric_v(target_batch, self.scaler.unscale(target_batch))
+        gen_mu, gen_cov, gen_amp = get_val_metric_v(res, self.scaler.unscale(res))
 
-        loss = img_loss(target_batch, res)
-        loss += KL * self.kl_lambda 
-        loss_metrics = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_metrics, res_metrics), axis=0)
-        loss += tf.cast(self.metrics_coef*loss_metrics, tf.float32)
+        loss_img = img_loss(target_batch, res)
+        loss_kl = KL * self.kl_lambda 
+        loss_mu = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_mu, gen_mu), axis=0)
+        loss_mu = tf.cast(self.mu_coef*loss_mu, tf.float32)
 
-        return {'loss': loss}
+        loss_cov = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_cov, gen_cov), axis=0)
+        loss_cov = tf.cast(self.cov_coef*loss_cov, tf.float32)
+
+        loss_amp = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_amp, gen_amp), axis=0)
+        loss_amp = tf.cast(self.amp_coef*loss_amp, tf.float32)
+
+        return {'loss': loss_img+loss_kl+loss_mu+loss_cov+loss_amp}
 
     @tf.function
     def training_step(self, feature_batch, target_batch):
