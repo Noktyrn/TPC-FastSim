@@ -173,7 +173,7 @@ class Model_v4_VAE:
         z_with_features = tf.concat([_f(features), z], axis=-1)
         return self.decoder(z_with_features)
 
-    @tf.function
+    #@tf.function
     def calculate_losses(self, feature_batch, target_batch):
         encoded_batch = self.encode(feature_batch, target_batch)
         mu, log_sigma = encoded_batch[:,0,:], encoded_batch[:,1,:]
@@ -187,18 +187,18 @@ class Model_v4_VAE:
 
         loss_img = img_loss(target_batch, res)
         loss_kl = KL * self.kl_lambda 
-        loss_mu = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_mu, gen_mu), axis=0)
+        loss_mu = tf.reduce_sum(tf.keras.losses.mean_squared_error(original_mu, gen_mu), axis=0)
         loss_mu = tf.cast(self.mu_coef*loss_mu, tf.float32)
 
-        loss_cov = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_cov, gen_cov), axis=0)
+        loss_cov = tf.reduce_sum(tf.keras.losses.mean_squared_error(original_cov, gen_cov), axis=0)
         loss_cov = tf.cast(self.cov_coef*loss_cov, tf.float32)
 
-        loss_amp = tf.reduce_sum(tf.keras.losses.mean_absolute_error(original_amp, gen_amp), axis=0)
+        loss_amp = tf.reduce_sum(tf.keras.losses.mean_squared_error(original_amp, gen_amp), axis=0)
         loss_amp = tf.cast(self.amp_coef*loss_amp, tf.float32)
 
         return {'loss': loss_img+loss_kl+loss_mu+loss_cov+loss_amp}
 
-    @tf.function
+    #@tf.function
     def training_step(self, feature_batch, target_batch):
         self.step_counter += 1
         
