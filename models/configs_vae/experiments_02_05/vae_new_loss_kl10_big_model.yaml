@@ -71,8 +71,8 @@ architecture:
                 name: encoder_conv_block
         - block_type: 'fully_connected'
           arguments:
-            units: [256, 256, 64]
-            activations: ['elu', 'elu', NULL]
+            units: [256, 256, 256, 64]
+            activations: ['elu', 'elu', 'elu', NULL]
             kernel_init: 'glorot_uniform'
             input_shape: [69,]
             output_shape: [2, 32]
