@@ -22,64 +22,14 @@ _f = preprocess_features
 
 @tf.function
 def img_loss(d_real, d_fake):
-    return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(d_real-d_fake), axis=(1, 2)))
+    return loss
 
 @tf.function
 def KL_div(mu, log_sigma):
     #https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
 
     return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=1))
-
-@tf.function
-def get_val_metric_v(imgs, imgs_unscaled):
-    """Returns a vector of gaussian fit results to the image.
-    The components are: [mu0, mu1, sigma0^2, sigma1^2, covariance, integral]
-    
-    assert len(imgs.shape) == 3, 'get_val_metric_v: Wrong images dimentions'
-    check1 = tf.get_static_value(tf.reduce_all(imgs >= 0))
-    check2 = tf.get_static_value(tf.reduce_all(tf.reduce_any(imgs > 0, axis=(1, 2))))
-    assert check1, 'get_val_metric_v: Negative image content'
-    assert check2, 'get_val_metric_v: some images are empty'
-    """
-
-    #step 1
-    imgs_n = tf.ones_like(imgs)
-    imgs_n = tf.reshape(imgs_n, imgs_n.shape[1:]+imgs_n.shape[0])
-    tf.multiply(imgs_n, tf.reduce_sum(imgs, [1, 2]))
-    imgs_n = tf.reshape(imgs_n, imgs_n.shape[-1]+imgs_n.shape[:2])
-    imgs_n = imgs / imgs_n
-
-    #step 2
-    indexes = np.fromfunction(
-        lambda i, j: (i, j),
-        shape=imgs.shape[1:],
-    )
-    prep2 = tf.expand_dims(imgs_n, axis=1)
-
-    #step 3
-    prep3 = tf.cast(tf.expand_dims(tf.stack([indexes[0], indexes[1]]), axis=0), tf.float32)
-
-    #step 4
-    prep4 = prep2 * prep3
-    mu = tf.reduce_sum(prep4, [2, 3])
-
-    #step 1
-    prep1 = tf.stack([indexes[0]*indexes[0], indexes[1]*indexes[1], indexes[0]*indexes[1]])
-    prep1 = tf.cast(tf.expand_dims(prep1, axis=0), tf.float32)
-
-    #step 2
-    prep2 = prep2 * prep1
-    prep2 = tf.reduce_sum(prep2, [2, 3])
-
-    #step 3
-    prep3 = tf.transpose(tf.stack([mu[:, 0] ** 2, mu[:, 1] ** 2, mu[:, 0] * mu[:, 1]]))
-
-    #step 4
-    cov = prep2 - prep3
-
-    integral = tf.expand_dims(tf.reduce_sum(imgs_unscaled, [1, 2]), axis=1)
-
-    return mu, cov, integral
 
 
 class Model_v4_VAE:

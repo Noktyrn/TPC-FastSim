@@ -1,6 +1,6 @@
 latent_dim: 16
 batch_size: 32
-lr: 1.e-3
+lr: 1.e-4
 lr_schedule_rate: 0.999
 
 kl_lambda: 2
@@ -48,13 +48,21 @@ architecture:
     encoder:
         - block_type: 'conv'
           arguments:
-            filters: [16, 16, 32, 32, 64, 128, 64, 32]
+            filters: [16, 16, 32, 32, 64, 128, 64, 64]
             kernel_sizes: [3, 3, 3, 3, 3, 3, 3, 2]
             paddings: ['same', 'same', 'same', 'same', 'same', 'same', 'valid', 'valid']
             activations: ['elu', 'elu', 'elu', 'elu', 'elu', 'elu', 'elu', 'elu']
             poolings: [NULL, [1, 2], NULL, NULL, NULL, 2, NULL, NULL]
             kernel_init: glorot_uniform
             input_shape: [8, 16, 1]
-            output_shape: [2, 16]
+            output_shape: [64,]
             dropouts: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            name: encoder_conv_block     
+            name: encoder_conv_block
+        - block_type: 'fully_connected'
+          arguments:
+            units: [64, 128, 128, 32]
+            activations: ['elu', 'elu', 'elu', 'elu']
+            kernel_init: 'glorot_uniform'
+            input_shape: [64,]
+            output_shape: [2, 16]
+            name: 'decoder'     

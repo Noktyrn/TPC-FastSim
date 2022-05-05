@@ -1,9 +1,9 @@
 latent_dim: 32
 batch_size: 32
-lr: 1.e-3
+lr: 1.e-4
 lr_schedule_rate: 0.999
 
-kl_lambda: 2
+kl_lambda: 0.5
 
 save_every: 40
 num_epochs: 4001
