@@ -22,7 +22,8 @@ _f = preprocess_features
 
 @tf.function
 def img_loss(d_real, d_fake):
-    return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(d_real-d_fake), axis=(1, 2)))
+    return loss
 
 @tf.function
 def KL_div(mu, log_sigma):
