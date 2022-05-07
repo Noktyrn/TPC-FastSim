@@ -65,10 +65,7 @@ def get_val_metric_v(imgs_unscaled, imgs):
     """
 
     #step 1
-    imgs_n = tf.ones_like(imgs)
-    imgs_n = tf.reshape(imgs_n, imgs_n.shape[1:]+imgs_n.shape[0])
-    imgs_n = tf.multiply(imgs_n, tf.reduce_sum(imgs, [1, 2]))
-    imgs_n = tf.reshape(imgs_n, imgs_n.shape[-1]+imgs_n.shape[:2])
+    imgs_n = tf.expand_dims(tf.expand_dims(tf.reduce_sum(imgs, axis=(1, 2)), axis=1), axis=1)
     imgs_n = imgs / imgs_n
 
     #step 2
