@@ -32,7 +32,7 @@ def KL_div(mu, log_sigma):
     return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=1))
 
 @tf.function
-def get_val_metric_v(imgs, imgs_unscaled):
+def get_val_metric_v(imgs_unscaled, imgs):
     """Returns a vector of gaussian fit results to the image.
     The components are: [mu0, mu1, sigma0^2, sigma1^2, covariance, integral]
     
@@ -200,7 +200,7 @@ class Model_v4_VAE:
         loss_amp = tf.reduce_mean(loss_amp, axis=0)
         loss_amp = tf.cast(self.amp_coef*loss_amp, tf.float32)
 
-        return {'loss': loss_img+loss_kl+loss_mu+loss_cov+loss_amp}
+        return {'loss': loss_img+loss_kl+loss_mu+loss_cov}
 
     @tf.function
     def training_step(self, feature_batch, target_batch):
