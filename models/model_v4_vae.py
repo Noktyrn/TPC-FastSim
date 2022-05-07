@@ -31,6 +31,27 @@ def KL_div(mu, log_sigma):
 
     return tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_sigma - mu**2 - tf.exp(log_sigma), axis=1))
 
+def get_val_metric_v_np(imgs):
+    """Returns a vector of gaussian fit results to the image.
+    The components are: [mu0, mu1, sigma0^2, sigma1^2, covariance, integral]
+    """
+    assert imgs.ndim == 3, 'get_val_metric_v: Wrong images dimentions'
+    assert (imgs >= 0).all(), 'get_val_metric_v: Negative image content'
+    assert (imgs > 0).any(axis=(1, 2)).all(), 'get_val_metric_v: some images are empty'
+    imgs_n = imgs / imgs.sum(axis=(1, 2), keepdims=True)
+    mu = np.fromfunction(
+        lambda i, j: (imgs_n[:, np.newaxis, ...] * np.stack([i, j])[np.newaxis, ...]).sum(axis=(2, 3)),
+        shape=imgs.shape[1:],
+    )
+
+    cov = np.fromfunction(
+        lambda i, j: ((imgs_n[:, np.newaxis, ...] * np.stack([i * i, j * j, i * j])[np.newaxis, ...]).sum(axis=(2, 3)))
+        - np.stack([mu[:, 0] ** 2, mu[:, 1] ** 2, mu[:, 0] * mu[:, 1]]).T,
+        shape=imgs.shape[1:],
+    )
+
+    return mu, cov, imgs.sum(axis=(1, 2))[:, np.newaxis]
+
 @tf.function
 def get_val_metric_v(imgs_unscaled, imgs):
     """Returns a vector of gaussian fit results to the image.
@@ -46,7 +67,7 @@ def get_val_metric_v(imgs_unscaled, imgs):
     #step 1
     imgs_n = tf.ones_like(imgs)
     imgs_n = tf.reshape(imgs_n, imgs_n.shape[1:]+imgs_n.shape[0])
-    tf.multiply(imgs_n, tf.reduce_sum(imgs, [1, 2]))
+    imgs_n = tf.multiply(imgs_n, tf.reduce_sum(imgs, [1, 2]))
     imgs_n = tf.reshape(imgs_n, imgs_n.shape[-1]+imgs_n.shape[:2])
     imgs_n = imgs / imgs_n
 
@@ -200,7 +221,7 @@ class Model_v4_VAE:
         loss_amp = tf.reduce_mean(loss_amp, axis=0)
         loss_amp = tf.cast(self.amp_coef*loss_amp, tf.float32)
 
-        return {'loss': loss_img+loss_kl+loss_mu+loss_cov}
+        return {'loss': loss_img+loss_kl+loss_mu+loss_cov+loss_amp}
 
     @tf.function
     def training_step(self, feature_batch, target_batch):
