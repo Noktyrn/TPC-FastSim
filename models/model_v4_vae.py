@@ -121,6 +121,14 @@ class Model_v4_VAE:
         self.cov_coef = config.get('cov_coef', 1.e-5)
         self.mu_coef = config.get('mu_coef', 1.e-3)
 
+        self.coef_loss = config.get('coef_loss', 'mse')
+        if self.coef_loss == 'mse':
+            self.coef_loss = tf.keras.losses.mean_squared_error
+        elif self.coef_loss == 'mae':
+            self.coef_loss = tf.keras.losses.mean_absolute_error
+        
+        self.include_amp = config.get('include_amplitude_loss', True)
+
         self.scaler = scalers.get_scaler(config['scaler'])
         self.pad_range = tuple(config['pad_range'])
         self.time_range = tuple(config['time_range'])
@@ -206,19 +214,23 @@ class Model_v4_VAE:
 
         loss_img = img_loss(target_batch, res)
         loss_kl = KL * self.kl_lambda 
-        loss_mu = tf.keras.losses.mean_squared_error(original_mu, gen_mu)
+        loss_mu = self.coef_loss(original_mu, gen_mu)
         loss_mu = tf.reduce_mean(loss_mu, axis=0)
         loss_mu = tf.cast(self.mu_coef*loss_mu, tf.float32)
 
-        loss_cov = tf.keras.losses.mean_squared_error(original_cov, gen_cov)
+        loss_cov = self.coef_loss(original_cov, gen_cov)
         loss_cov = tf.reduce_mean(loss_cov, axis=0)
         loss_cov = tf.cast(self.cov_coef*loss_cov, tf.float32)
 
-        loss_amp = tf.keras.losses.mean_squared_error(original_amp, gen_amp)
+        loss_amp = self.coef_loss(original_amp, gen_amp)
         loss_amp = tf.reduce_mean(loss_amp, axis=0)
         loss_amp = tf.cast(self.amp_coef*loss_amp, tf.float32)
 
-        return {'loss': loss_img+loss_kl+loss_mu+loss_cov+loss_amp}
+        loss = loss_img+loss_kl+loss_mu+loss_cov
+        if self.include_amp:
+            loss += loss_amp
+
+        return {'loss': loss}
 
     @tf.function
     def training_step(self, feature_batch, target_batch):
