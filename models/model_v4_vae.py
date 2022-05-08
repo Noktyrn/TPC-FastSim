@@ -230,7 +230,7 @@ class Model_v4_VAE:
         if self.include_amp:
             loss += loss_amp
 
-        return {'loss': loss}
+        return {'loss': loss, 'loss_mu': loss_mu, 'loss_cov': loss_cov, 'loss_amp': loss_amp}
 
     @tf.function
     def training_step(self, feature_batch, target_batch):

@@ -57,14 +57,21 @@ class VAE_ScheduleLRCallback:
         self.writer = writer
 
     def __call__(self, step):
-        """
         self.model.opt.lr.assign(self.func(step))
         with self.writer.as_default():
             tf.summary.scalar("learning rate", self.model.opt.lr, step)
-        """
-        self.model.opt.lr.assign(self.func(step))
-        with self.writer.as_default():
-            tf.summary.scalar("learning rate", self.model.opt.lr, step)
+
+class VAE_SaveModelCallback:
+    def __init__(self, model, path, save_period):
+        self.model = model
+        self.path = path
+        self.save_period = save_period
+
+    def __call__(self, step):
+        if step % self.save_period == 0:
+            print(f'Saving model on step {step} to {self.path}')
+            self.model.encoder.save(str(self.path.joinpath("encoder_{:05d}.h5".format(step))))
+            self.model.decoder.save(str(self.path.joinpath("decoder_{:05d}.h5".format(step))))
 
 class VAE_PlateauScheduleLRCallback:
     def __init__(self, model, func, writer):
@@ -82,24 +89,12 @@ class VAE_PlateauScheduleLRCallback:
         with self.writer.as_default():
             tf.summary.scalar("learning rate", self.model.opt.lr, step)
 
-class VAE_SaveModelCallback:
-    def __init__(self, model, path, save_period):
-        self.model = model
-        self.path = path
-        self.save_period = save_period
-
-    def __call__(self, step):
-        if step % self.save_period == 0:
-            print(f'Saving model on step {step} to {self.path}')
-            self.model.encoder.save(str(self.path.joinpath("encoder_{:05d}.h5".format(step))))
-            self.model.decoder.save(str(self.path.joinpath("decoder_{:05d}.h5".format(step))))
-
 def get_scheduler(lr, lr_decay):
     if isinstance(lr_decay, str):
         return eval(lr_decay)
 
     def schedule_lr(step):
-        return lr * lr_decay ** step
+        return lr / ((step+1)**lr_decay)
 
     return schedule_lr
 
