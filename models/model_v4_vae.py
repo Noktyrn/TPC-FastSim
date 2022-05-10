@@ -22,7 +22,7 @@ _f = preprocess_features
 
 @tf.function
 def img_loss(d_real, d_fake):
-    loss = tf.reduce_mean(tf.reduce_sum(tf.square(d_real-d_fake), axis=(1, 2)))
+    loss = tf.reduce_mean(tf.reduce_sum(tf.abs(d_real-d_fake), axis=(1, 2)))
     return loss
 
 @tf.function
@@ -117,9 +117,9 @@ class Model_v4_VAE:
         )
 
         self.step_counter = 0
-        self.amp_coef = config.get('amp_coef', 1.e-5)
-        self.cov_coef = config.get('cov_coef', 1.e-5)
-        self.mu_coef = config.get('mu_coef', 1.e-3)
+        self.amp_coef = config.get('amp_coef', 0)
+        self.cov_coef = config.get('cov_coef', 0)
+        self.mu_coef = config.get('mu_coef', 0)
 
         self.coef_loss = config.get('coef_loss', 'mse')
         if self.coef_loss == 'mse':
@@ -127,7 +127,7 @@ class Model_v4_VAE:
         elif self.coef_loss == 'mae':
             self.coef_loss = tf.keras.losses.mean_absolute_error
         
-        self.include_amp = config.get('include_amplitude_loss', True)
+        self.include_amp = config.get('include_amplitude_loss', False)
 
         self.scaler = scalers.get_scaler(config['scaler'])
         self.pad_range = tuple(config['pad_range'])
@@ -135,8 +135,8 @@ class Model_v4_VAE:
         self.data_version = config['data_version']
         self.enc_type = config['encoder_type']
 
-        self.encoder.compile(optimizer=self.opt, loss='mean_squared_error', run_eagerly=True)
-        self.decoder.compile(optimizer=self.opt, loss='mean_squared_error', run_eagerly=True)
+        self.encoder.compile(optimizer=self.opt, loss='mean_absolute_error', run_eagerly=True)
+        self.decoder.compile(optimizer=self.opt, loss='mean_absolute_error', run_eagerly=True)
 
     def load_encoder(self, checkpoint):
         self._load_weights(checkpoint, 'enc')
