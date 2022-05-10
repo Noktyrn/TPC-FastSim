@@ -22,7 +22,7 @@ _f = preprocess_features
 
 @tf.function
 def img_loss(d_real, d_fake):
-    loss = tf.reduce_mean(tf.reduce_sum(tf.abs(d_real-d_fake), axis=(1, 2)))
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(d_real-d_fake), axis=(1, 2)))
     return loss
 
 @tf.function
@@ -135,8 +135,8 @@ class Model_v4_VAE:
         self.data_version = config['data_version']
         self.enc_type = config['encoder_type']
 
-        self.encoder.compile(optimizer=self.opt, loss='mean_absolute_error', run_eagerly=True)
-        self.decoder.compile(optimizer=self.opt, loss='mean_absolute_error', run_eagerly=True)
+        self.encoder.compile(optimizer=self.opt, loss='mean_squared_error', run_eagerly=True)
+        self.decoder.compile(optimizer=self.opt, loss='mean_squared_error', run_eagerly=True)
 
     def load_encoder(self, checkpoint):
         self._load_weights(checkpoint, 'enc')
