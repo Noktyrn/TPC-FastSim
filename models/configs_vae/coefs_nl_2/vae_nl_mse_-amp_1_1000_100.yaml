@@ -17,7 +17,7 @@ time_range: [-7, 9]
 scaler: 'logarithmic'
 encoder_type: 'conv'
 amp_coef: 1
-mu_coef: 10
+mu_coef: 1000
 cov_coef: 100
 coef_loss: 'mse'
 include_amplitude_loss: False 

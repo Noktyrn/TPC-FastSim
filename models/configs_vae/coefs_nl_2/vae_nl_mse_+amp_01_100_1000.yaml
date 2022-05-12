@@ -18,7 +18,7 @@ scaler: 'logarithmic'
 encoder_type: 'conv'
 amp_coef: 0.1
 mu_coef: 100
-cov_coef: 100
+cov_coef: 1000
 coef_loss: 'mse'
 include_amplitude_loss: True 
 
