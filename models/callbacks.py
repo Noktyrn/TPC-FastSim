@@ -70,8 +70,7 @@ class VAE_SaveModelCallback:
     def __call__(self, step):
         if step % self.save_period == 0:
             print(f'Saving model on step {step} to {self.path}')
-            self.model.encoder.save(str(self.path.joinpath("encoder_{:05d}.h5".format(step))))
-            self.model.decoder.save(str(self.path.joinpath("decoder_{:05d}.h5".format(step))))
+            self.model.save_weights(self.path, step)
 
 class VAE_PlateauScheduleLRCallback:
     def __init__(self, model, func, writer):
