@@ -155,7 +155,7 @@ class Model_v4_AE:
         with tf.GradientTape() as t:
             losses = self.calculate_losses(feature_batch, target_batch)
 
-        train_vars = self.converter.trainable_variables
+        train_vars = self.converter.trainable_variables + self.decoder.trainable_variables + self.encoder.trainable_variables
 
         grads = t.gradient(losses['loss'], train_vars)
         self.opt.apply_gradients(zip(grads, train_vars))
