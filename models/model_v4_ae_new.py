@@ -140,11 +140,11 @@ class Model_v4_AE:
     def calculate_losses(self, feature_batch, target_batch):
         z = self.encode(feature_batch, target_batch)
         z_converter = self.converter(tf.concat([_f(feature_batch), tf.random.normal(z.shape)], axis=-1))
-        res_f = self.decode(feature_batch, z)
+        res_f = self.decode(feature_batch, z_converter)
 
         img_l = img_loss(target_batch, res_f)
         conv_l = conv_loss(z, z_converter)
-        loss = img_l + conv_l
+        loss = img_l + 0.1*conv_l
         return {'loss': loss, 'img_loss': img_l, 'conv_loss': conv_l}
 
     @tf.function
