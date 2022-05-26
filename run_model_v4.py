@@ -10,7 +10,7 @@ from data import preprocessing
 from models.utils import latest_epoch, load_weights
 from models.training import train
 from models.callbacks import VAE_SaveModelCallback, SaveModelCallback, WriteHistSummaryCallback, ScheduleLRCallback, get_scheduler, VAE_ScheduleLRCallback
-from models.model_v4_ae_new import Model_v4_AE as Model_v4
+from models.model_v4_ae import Model_v4_AE as Model_v4
 from metrics import evaluate_model
 import cuda_gpu_config
 

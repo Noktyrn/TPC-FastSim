@@ -40,7 +40,7 @@ architecture:
                     )
                 )"
             ]
-            dropouts: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02]
+            dropouts: [0.04, 0.04, 0.04, 0.04, 0.04]
             kernel_init: 'glorot_uniform'
             input_shape: [37,]
             output_shape: [8, 16]
@@ -69,8 +69,8 @@ architecture:
                 name: encoder_conv_block
         - block_type: 'fully_connected'
           arguments:
-            units: [64, 32]
-            activations: ['elu', NULL]
+            units: [128, 64, 32]
+            activations: ['elu', 'elu', NULL]
             kernel_init: 'glorot_uniform'
             input_shape: [69,]
             output_shape: [32, ]

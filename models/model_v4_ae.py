@@ -21,11 +21,15 @@ def preprocess_features(features):
 _f = preprocess_features
 
 
-def vae_loss(d_real, d_fake):
-    return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0, 1)))
+@tf.function
+def img_loss(d_real, d_fake):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(d_real-d_fake), axis=(1, 2)))
+    return loss
 
-def ae_loss(d_real, d_fake):
-    return tf.reduce_mean(tf.reduce_sum(tf.keras.losses.mean_squared_error(d_real, d_fake), axis=(0)))
+@tf.function
+def conv_loss(z_real, z_conv):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(z_real-z_conv), axis=(1)))
+    return loss
 
 
 def KL_div(mu, log_sigma):
@@ -59,6 +63,10 @@ class Model_v4_AE:
         self.encoder.compile(optimizer=self.opt, loss='mean_squared_error')
         self.decoder.compile(optimizer=self.opt, loss='mean_squared_error')
 
+    def save_weights(self, path, step):
+        self.encoder.save(str(path.joinpath("encoder_{:05d}.h5".format(step))))
+        self.decoder.save(str(path.joinpath("decoder_{:05d}.h5".format(step))))
+    
     def load_encoder(self, checkpoint):
         self._load_weights(checkpoint, 'enc')
 
@@ -127,7 +135,7 @@ class Model_v4_AE:
         res_f = self.decode(feature_batch, z)
         #ae_l = ae_loss(_f(feature_batch), encoded_batch)
         #tf.print(ae_l)
-        loss = vae_loss(target_batch, res_f)
+        loss = img_loss(target_batch, res_f)
         return {'loss': loss}
 
     @tf.function

@@ -40,7 +40,7 @@ architecture:
                     )
                 )"
             ]
-            dropouts: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02]
+            dropouts: [0.02, 0.02, 0.02, 0.02, 0.02]
             kernel_init: 'glorot_uniform'
             input_shape: [37,]
             output_shape: [8, 16]
